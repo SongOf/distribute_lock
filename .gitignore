@@ -1,1 +1,6 @@
 /distribute_lock.iml
+/.idea/
+/redis_lock/redisson-lock/target/
+/redis_lock/redisson-lock-test/target/
+/db_lock/target/
+/zk_lock/target/

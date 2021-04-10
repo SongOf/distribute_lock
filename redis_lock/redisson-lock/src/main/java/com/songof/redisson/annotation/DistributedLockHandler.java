@@ -1,5 +1,19 @@
 package com.songof.redisson.annotation;
 
+import com.songof.redisson.RedissonLock;
+import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.Signature;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Pointcut;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.lang.reflect.Method;
+
 /**
  * @author SongOf
  * @ClassName DistributedLockHandler
@@ -7,5 +21,50 @@ package com.songof.redisson.annotation;
  * @Date 2021/3/27 22:53
  * @Version 1.0
  */
+@Aspect
+@Component
+@Slf4j
 public class DistributedLockHandler {
+    @Autowired
+    private RedissonLock redissonLock;
+
+    @Pointcut("@annotation(com.songof.redisson.annotation.DistributedLock)")
+    public void aopPoint() {
+
+    }
+
+    @Around("aopPoint()")
+    public void around(ProceedingJoinPoint joinPoint) throws Throwable{
+        log.info("[开始]执行RedisLock环绕通知,获取Redis分布式锁开始");
+        Method method = getMethod(joinPoint);
+        DistributedLock distributedLock = method.getAnnotation(DistributedLock.class);
+        //获取锁名称
+        String lockName = distributedLock.value();
+        //获取超时时间，默认10秒
+        int leaseTime = distributedLock.leaseTime();
+        redissonLock.lock(lockName, leaseTime);
+        try {
+            log.info("获取Redis分布式锁[成功]，加锁完成，开始执行业务逻辑...");
+            joinPoint.proceed();
+        } catch (Throwable throwable) {
+            log.error("获取Redis分布式锁[异常]，加锁失败", throwable);
+            throwable.printStackTrace();
+        } finally {
+            //如果该线程还持有该锁，那么释放该锁。如果该线程不持有该锁，说明该线程的锁已到过期时间，自动释放锁
+            if (redissonLock.isHeldByCurrentThread(lockName)) {
+                redissonLock.unlock(lockName);
+            }
+        }
+        log.info("释放Redis分布式锁[成功]，解锁完成，结束业务逻辑...");
+    }
+
+    private Method getMethod(JoinPoint jp) throws NoSuchMethodException {
+        Signature sig = jp.getSignature();
+        MethodSignature methodSignature = (MethodSignature) sig;
+        return getClass(jp).getMethod(methodSignature.getName(), methodSignature.getParameterTypes());
+    }
+
+    private Class<? extends Object> getClass(JoinPoint jp) throws NoSuchMethodException {
+        return jp.getTarget().getClass();
+    }
 }

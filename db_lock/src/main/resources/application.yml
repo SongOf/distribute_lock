@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: lock
+  datasource:
+    url: jdbc:mysql://152.136.102.229:3306/mysql_lock?useSSL=false&useUnicode=true&characterEncoding=UTF-8
+    driver-class-name: com.mysql.jdbc.Driver
+    username: ts-mysql
+    password: 022012bupT!
+    druid:
+      initial-size: 50
+      min-idle: 50
+      max-active: 100
+      test-on-borrow: true
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+mybatis:
+  mapperLocations: classpath*:/mapper/*.xml
+  configuration:
+    mapUnderscoreToCamelCase: true
